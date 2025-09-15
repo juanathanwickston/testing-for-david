@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+html, body {
+  height: 100%;
+}
+body {
+  @apply bg-gray-50 text-black;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
