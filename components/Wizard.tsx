@@ -35,8 +35,8 @@ export default function Wizard() {
     markupBps: 35,
     markupPerItem: 0.06,
     // Flat
-    flatPct: 0.04,
-    flatPctEditing: undefined as any,
+    flatPct: 0.04,               // stored as 0–1
+    flatPctEditing: undefined as string | undefined, // UI helper
     flatPerItem: 0.1,
     // Common
     monthlyFeesToMerchant: 0,
@@ -44,15 +44,15 @@ export default function Wizard() {
     customCosts: { basePct: 0.019, assessmentsPct: 0.0013, perItem: 0.1 },
     // Agent share (0–1)
     agentShare: 0.5,
-    agentShareEditing: undefined as any,
+    agentShareEditing: undefined as string | undefined,
     // Surcharge specifics
-    creditPct: 0.60,          // portion of volume that is credit
+    creditPct: 0.60,          // portion of volume that is credit (0–1)
     debitBps: 35,             // 35 bps on debit
     debitPerItem: 0,          // $0.00 per debit item
     creditSurchargePct: 3,    // 3% surcharge on credit
   });
 
-  // Hardware (defaults per your notes: 1 full terminal, 0 drawers/printers; amort 30 months)
+  // Hardware (defaults per your notes)
   const [hardware, setHardware] = useState({
     posTerminals: 1,
     terminalOnlyUnits: 0,
@@ -86,7 +86,6 @@ export default function Wizard() {
     [biz, processing, hardware]
   );
 
-  // Build export row
   function makeLead() {
     return {
       EntityType: biz.entityType,
@@ -94,25 +93,21 @@ export default function Wizard() {
       RestaurantType: RESTAURANT_TYPES.find((t) => t.id === biz.type)?.name || biz.type,
       Cuisine: biz.cuisine,
       OpenDate: biz.openDate,
-
       MonthlyVolume: processing.monthlyVolume,
       AverageTicket: processing.averageTicket,
       EstTransactions: derived.tx,
       CardPresentPct: processing.cardPresentPct,
-
       PricingModel: processing.pricingModel,
       MarkupBps: processing.markupBps,
       MarkupPerItem: processing.markupPerItem,
       FlatPct: processing.flatPct,
       FlatPerItem: processing.flatPerItem,
       MonthlyFeesToMerchant: processing.monthlyFeesToMerchant,
-
       CostPctUsed: derived.costPct,
       NetworkPerItemCost: derived.blendedPerItem,
       MerchantFeesCollected: derived.merchantFees,
       NetworkCosts: derived.networkCosts,
       GrossProfit: derived.grossProfit,
-
       POS_Terminals: hardware.posTerminals,
       TerminalOnly_Units: hardware.terminalOnlyUnits,
       Receipt_Printers: hardware.receiptPrinters,
@@ -121,7 +116,6 @@ export default function Wizard() {
       KDS_Units: hardware.kdsUnits,
       CashDrawers: hardware.cashDrawers,
       Scanners: hardware.scanners,
-
       UnitCost_FullStation_First: hardware.pricing.posTerminalFirst,
       UnitCost_FullStation_Additional: hardware.pricing.posTerminalAdditional,
       UnitCost_TerminalOnly: hardware.pricing.terminalOnly,
@@ -133,7 +127,6 @@ export default function Wizard() {
       UnitCost_Scanner: hardware.pricing.scanner,
       InstallTraining: hardware.pricing.installTraining,
       IncludeInstallTraining: hardware.includeInstallTraining,
-
       HardwareCAPEX: derived.capex,
       HardwareAmortizedMonthly: derived.amort,
       AmortTermMonths: hardware.amortTermMonths,
@@ -143,22 +136,18 @@ export default function Wizard() {
       CoverageTargetMonthly: derived.coverageTarget,
       RequiredWithBuffer: derived.required,
       Eligibility: derived.eligibility,
-
       CreditMixPct: Math.round(Number(processing.creditPct||0)*100),
       DebitBps: processing.debitBps,
       DebitPerItem: processing.debitPerItem,
       CreditSurchargePct: processing.creditSurchargePct,
       SurchargeRevenue: derived.surchargeRevenue,
-
       AgentSharePct: Math.round(Number(processing.agentShare||0)*100),
       AgentProfit: derived.agentProfit,
       NetAgentProfit: derived.agentProfit - derived.coverageTarget,
-
       Notes: notes,
     };
   }
 
-  // Export (xlsx with CSV fallback)
   async function exportResults() {
     const safeName = "onepos_lead";
     const lead = makeLead();
@@ -184,9 +173,6 @@ export default function Wizard() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-black">ONEPOS Hardware Eligibility</h1>
-          <p className="text-base md:text-lg text-black font-medium">
-            Consultative discovery to assess low/no-cost placement viability.
-          </p>
         </div>
         <span className="text-sm text-black rounded-full bg-gray-100 px-2 py-1">
           Step {step + 1} / {steps.length}
@@ -215,14 +201,14 @@ export default function Wizard() {
               <Field label="Est. Monthly Card Volume ($)">
                 <NumberField
                   value={processing.monthlyVolume}
-                  onChange={(v) => setProcessing({ ...processing, monthlyVolume: v })}
+                  onChange={(v) => setProcessing({ ...processing, monthlyVolume: toNum(v, 0) })}
                   onCommit={(v) => setProcessing({ ...processing, monthlyVolume: toNum(v, 0) })}
                 />
               </Field>
               <Field label="Average Ticket ($)">
                 <NumberField
                   value={processing.averageTicket}
-                  onChange={(v) => setProcessing({ ...processing, averageTicket: v })}
+                  onChange={(v) => setProcessing({ ...processing, averageTicket: toNum(v, 0) })}
                   onCommit={(v) => setProcessing({ ...processing, averageTicket: toNum(v, 0) })}
                 />
               </Field>
@@ -258,7 +244,7 @@ export default function Wizard() {
               <Field label="Locations">
                 <NumberField
                   value={biz.locations}
-                  onChange={(v) => setBiz({ ...biz, locations: v })}
+                  onChange={(v) => setBiz({ ...biz, locations: toNum(v, 0) })}
                   onCommit={(v) => setBiz({ ...biz, locations: toNum(v, 0) })}
                 />
               </Field>
@@ -276,21 +262,21 @@ export default function Wizard() {
               <Field label="Monthly Card Volume ($)">
                 <NumberField
                   value={processing.monthlyVolume}
-                  onChange={(v) => setProcessing({ ...processing, monthlyVolume: v })}
+                  onChange={(v) => setProcessing({ ...processing, monthlyVolume: toNum(v, 0) })}
                   onCommit={(v) => setProcessing({ ...processing, monthlyVolume: toNum(v, 0) })}
                 />
               </Field>
               <Field label="Average Ticket ($)">
                 <NumberField
                   value={processing.averageTicket}
-                  onChange={(v) => setProcessing({ ...processing, averageTicket: v })}
+                  onChange={(v) => setProcessing({ ...processing, averageTicket: toNum(v, 0) })}
                   onCommit={(v) => setProcessing({ ...processing, averageTicket: toNum(v, 0) })}
                 />
               </Field>
               <Field label="Card-Present Mix (%)">
                 <NumberField
                   value={Math.round(Number(processing.cardPresentPct || 0) * 100)}
-                  onChange={(v) => setProcessing({ ...processing, cardPresentPct: v })}
+                  onChange={(v) => setProcessing({ ...processing, cardPresentPct: toNum(v, 0) / 100 })}
                   onCommit={(v) =>
                     setProcessing({
                       ...processing,
@@ -327,7 +313,7 @@ export default function Wizard() {
                 <Field key={k} label={label}>
                   <NumberField
                     value={(hardware as any)[k]}
-                    onChange={(v) => setHardware({ ...hardware, [k]: v } as any)}
+                    onChange={(v) => setHardware({ ...hardware, [k]: toNum(v, 0) } as any)}
                     onCommit={(v) => setHardware({ ...hardware, [k]: toNum(v, 0) } as any)}
                   />
                 </Field>
@@ -354,7 +340,7 @@ export default function Wizard() {
                           onChange={(val) =>
                             setHardware({
                               ...hardware,
-                              pricing: { ...hardware.pricing, [k]: val },
+                              pricing: { ...hardware.pricing, [k]: toNum(val, 0) },
                             })
                           }
                           onCommit={(val) =>
@@ -436,7 +422,7 @@ export default function Wizard() {
               <Field label="Risk Buffer (%)">
                 <NumberField
                   value={Math.round(Number(hardware.bufferPct || 0) * 100)}
-                  onChange={(v) => setHardware({ ...hardware, bufferPct: v as any })}
+                  onChange={(v) => setHardware({ ...hardware, bufferPct: toNum(v, 0) / 100 })}
                   onCommit={(v) =>
                     setHardware({
                       ...hardware,
@@ -448,22 +434,10 @@ export default function Wizard() {
             </div>
 
             <div className="grid md:grid-cols-4 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Hardware CAPEX</div>
-                <div className="text-xl font-semibold">{currency(derived.capex)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Amortized / Month</div>
-                <div className="text-xl font-semibold">{currency(derived.amort)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Coverage Target</div>
-                <div className="text-xl font-semibold">{currency(derived.coverageTarget)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Required w/ Buffer</div>
-                <div className="text-xl font-semibold">{currency(derived.required)}</div>
-              </div>
+              <Stat label="Hardware CAPEX" value={currency(derived.capex)} />
+              <Stat label="Amortized / Month" value={currency(derived.amort)} />
+              <Stat label="Coverage Target" value={currency(derived.coverageTarget)} />
+              <Stat label="Required w/ Buffer" value={currency(derived.required)} />
             </div>
           </div>
         );
@@ -492,7 +466,7 @@ export default function Wizard() {
               <Field label="Monthly Fees Billed via Processor ($)">
                 <NumberField
                   value={processing.monthlyFeesToMerchant}
-                  onChange={(v) => setProcessing({ ...processing, monthlyFeesToMerchant: v })}
+                  onChange={(v) => setProcessing({ ...processing, monthlyFeesToMerchant: toNum(v, 0) })}
                   onCommit={(v) =>
                     setProcessing({
                       ...processing,
@@ -508,21 +482,21 @@ export default function Wizard() {
                 <Field label="Markup (bps)">
                   <NumberField
                     value={processing.markupBps}
-                    onChange={(v) => setProcessing({ ...processing, markupBps: v })}
+                    onChange={(v) => setProcessing({ ...processing, markupBps: toNum(v, 0) })}
                     onCommit={(v) => setProcessing({ ...processing, markupBps: toNum(v, 0) })}
                   />
                 </Field>
                 <Field label="Per-Item Markup ($)">
                   <NumberField
                     value={processing.markupPerItem}
-                    onChange={(v) => setProcessing({ ...processing, markupPerItem: v })}
+                    onChange={(v) => setProcessing({ ...processing, markupPerItem: toNum(v, 0) })}
                     onCommit={(v) => setProcessing({ ...processing, markupPerItem: toNum(v, 0) })}
                   />
                 </Field>
                 <Field label="Card-Present Mix (%)">
                   <NumberField
                     value={Math.round(Number(processing.cardPresentPct || 0) * 100)}
-                    onChange={(v) => setProcessing({ ...processing, cardPresentPct: v })}
+                    onChange={(v) => setProcessing({ ...processing, cardPresentPct: toNum(v, 0) / 100 })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -550,14 +524,14 @@ export default function Wizard() {
                 <Field label="Per-Item ($)">
                   <NumberField
                     value={processing.flatPerItem}
-                    onChange={(v) => setProcessing({ ...processing, flatPerItem: v })}
+                    onChange={(v) => setProcessing({ ...processing, flatPerItem: toNum(v, 0) })}
                     onCommit={(v) => setProcessing({ ...processing, flatPerItem: toNum(v, 0) })}
                   />
                 </Field>
                 <Field label="Card-Present Mix (%)">
                   <NumberField
                     value={Math.round(Number(processing.cardPresentPct || 0) * 100)}
-                    onChange={(v) => setProcessing({ ...processing, cardPresentPct: v })}
+                    onChange={(v) => setProcessing({ ...processing, cardPresentPct: toNum(v, 0) / 100 })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -574,7 +548,7 @@ export default function Wizard() {
                 <Field label="Credit Mix (%)">
                   <NumberField
                     value={Math.round(Number(processing.creditPct || 0) * 100).toString()}
-                    onChange={(v) => setProcessing({ ...processing, creditPct: v })}
+                    onChange={(v) => setProcessing({ ...processing, creditPct: toNum(v, 60) / 100 })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -586,7 +560,7 @@ export default function Wizard() {
                 <Field label="Debit Fee (bps)">
                   <NumberField
                     value={String(processing.debitBps ?? 35)}
-                    onChange={(v) => setProcessing({ ...processing, debitBps: v })}
+                    onChange={(v) => setProcessing({ ...processing, debitBps: toNum(v, 35) })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -598,7 +572,7 @@ export default function Wizard() {
                 <Field label="Debit Per-Item ($)">
                   <NumberField
                     value={String(processing.debitPerItem ?? 0)}
-                    onChange={(v) => setProcessing({ ...processing, debitPerItem: v })}
+                    onChange={(v) => setProcessing({ ...processing, debitPerItem: toNum(v, 0) })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -610,7 +584,7 @@ export default function Wizard() {
                 <Field label="Credit Surcharge (%)">
                   <NumberField
                     value={String(processing.creditSurchargePct ?? 3)}
-                    onChange={(v) => setProcessing({ ...processing, creditSurchargePct: v })}
+                    onChange={(v) => setProcessing({ ...processing, creditSurchargePct: toNum(v, 3) })}
                     onCommit={(v) =>
                       setProcessing({
                         ...processing,
@@ -623,53 +597,21 @@ export default function Wizard() {
             )}
 
             <div className="grid md:grid-cols-6 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Est. Merchant Fees</div>
-                <div className="text-xl font-semibold">{currency(derived.merchantFees)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Est. Network Costs</div>
-                <div className="text-xl font-semibold">{currency(derived.networkCosts)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Gross Profit</div>
-                <div className="text-xl font-semibold">{currency(derived.grossProfit)}</div>
-              </div>
+              <Stat label="Est. Merchant Fees" value={currency(derived.merchantFees)} />
+              <Stat label="Est. Network Costs" value={currency(derived.networkCosts)} />
+              <Stat label="Gross Profit" value={currency(derived.grossProfit)} />
               {processing.pricingModel === "surcharge" && (
-                <div>
-                  <div className="text-sm text-gray-800">Surcharge Revenue</div>
-                  <div className="text-xl font-semibold">
-                    {currency(derived.surchargeRevenue || 0)}
-                  </div>
-                </div>
+                <Stat label="Surcharge Revenue" value={currency(derived.surchargeRevenue || 0)} />
               )}
-              <div>
-                <div className="text-sm text-gray-800">Transactions</div>
-                <div className="text-xl font-semibold">{derived.tx.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Agent Profit</div>
-                <div className="text-xl font-semibold">{currency(derived.agentProfit)}</div>
-              </div>
+              <Stat label="Transactions" value={derived.tx.toLocaleString()} />
+              <Stat label="Agent Profit" value={currency(derived.agentProfit)} />
             </div>
 
             <div className="grid md:grid-cols-4 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Hardware CAPEX</div>
-                <div className="text-xl font-semibold">{currency(derived.capex)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Amortized / Month</div>
-                <div className="text-xl font-semibold">{currency(derived.amort)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Coverage Target</div>
-                <div className="text-xl font-semibold">{currency(derived.coverageTarget)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Required w/ Buffer</div>
-                <div className="text-xl font-semibold">{currency(derived.required)}</div>
-              </div>
+              <Stat label="Hardware CAPEX" value={currency(derived.capex)} />
+              <Stat label="Amortized / Month" value={currency(derived.amort)} />
+              <Stat label="Coverage Target" value={currency(derived.coverageTarget)} />
+              <Stat label="Required w/ Buffer" value={currency(derived.required)} />
             </div>
           </div>
         );
@@ -692,10 +634,7 @@ export default function Wizard() {
                     onChange={(e) =>
                       setProcessing({
                         ...processing,
-                        monthlyVolume: Math.max(
-                          0,
-                          Number((e.target as HTMLInputElement).value)
-                        ) / 12,
+                        monthlyVolume: Math.max(0, Number((e.target as HTMLInputElement).value)) / 12,
                       })
                     }
                     className="w-full"
@@ -749,45 +688,19 @@ export default function Wizard() {
             </div>
 
             <div className="grid md:grid-cols-6 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Est. Merchant Fees</div>
-                <div className="text-xl font-semibold">{currency(derived.merchantFees)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Est. Network Costs</div>
-                <div className="text-xl font-semibold">{currency(derived.networkCosts)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Gross Profit</div>
-                <div className="text-xl font-semibold">{currency(derived.grossProfit)}</div>
-              </div>
+              <Stat label="Est. Merchant Fees" value={currency(derived.merchantFees)} />
+              <Stat label="Est. Network Costs" value={currency(derived.networkCosts)} />
+              <Stat label="Gross Profit" value={currency(derived.grossProfit)} />
               {processing.pricingModel === "surcharge" && (
-                <div>
-                  <div className="text-sm text-gray-800">Surcharge Revenue</div>
-                  <div className="text-xl font-semibold">
-                    {currency(derived.surchargeRevenue || 0)}
-                  </div>
-                </div>
+                <Stat label="Surcharge Revenue" value={currency(derived.surchargeRevenue || 0)} />
               )}
-              <div>
-                <div className="text-sm text-gray-800">Transactions</div>
-                <div className="text-xl font-semibold">{derived.tx.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Agent Profit</div>
-                <div className="text-xl font-semibold">{currency(derived.agentProfit)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Required w/ Buffer</div>
-                <div className="text-xl font-semibold">{currency(derived.required)}</div>
-              </div>
+              <Stat label="Transactions" value={derived.tx.toLocaleString()} />
+              <Stat label="Agent Profit" value={currency(derived.agentProfit)} />
+              <Stat label="Required w/ Buffer" value={currency(derived.required)} />
             </div>
 
             <div className="grid md:grid-cols-3 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Coverage Target</div>
-                <div className="text-xl font-semibold">{currency(derived.coverageTarget)}</div>
-              </div>
+              <Stat label="Coverage Target" value={currency(derived.coverageTarget)} />
               <div>
                 <div className="text-sm text-gray-800">Net Agent Profit</div>
                 <div
@@ -799,10 +712,7 @@ export default function Wizard() {
                   {currency(derived.agentProfit - derived.coverageTarget)}
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-gray-800">Eligibility</div>
-                <div className="text-xl font-semibold">{derived.eligibility}</div>
-              </div>
+              <Stat label="Eligibility" value={derived.eligibility} />
             </div>
           </div>
         );
@@ -811,20 +721,12 @@ export default function Wizard() {
         return (
           <div className="space-y-6">
             <div className="grid md:grid-cols-3 gap-4 p-4 rounded-lg border bg-gray-50">
-              <div>
-                <div className="text-sm text-gray-800">Agent Profit</div>
-                <div className="text-xl font-semibold">{currency(derived.agentProfit)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-800">Coverage Target</div>
-                <div className="text-xl font-semibold">{currency(derived.coverageTarget)}</div>
-              </div>
+              <Stat label="Agent Profit" value={currency(derived.agentProfit)} />
+              <Stat label="Coverage Target" value={currency(derived.coverageTarget)} />
               <div>
                 <div className="text-sm text-gray-800">Net Agent Profit (Monthly)</div>
                 <div
-                  className={
-                    `text-xl font-semibold ${(derived.agentProfit - derived.coverageTarget) < 0 ? 'text-red-600' : 'text-black'}`
-                  }
+                  className={`text-xl font-semibold ${(derived.agentProfit - derived.coverageTarget) < 0 ? 'text-red-600' : 'text-black'}`}
                 >
                   {currency(derived.agentProfit - derived.coverageTarget)}
                 </div>
@@ -912,6 +814,15 @@ export default function Wizard() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-sm text-gray-800">{label}</div>
+      <div className="text-xl font-semibold">{value}</div>
     </div>
   );
 }
